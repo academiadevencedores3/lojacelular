@@ -182,12 +182,12 @@ const Success: React.FC = () => {
             <Share2 className="w-5 h-5" /> Compartilhar
           </button>
           
-          <Link 
-            to="/"
-            className="flex items-center justify-center gap-2 bg-brand-600 text-white py-3.5 rounded-xl font-bold hover:bg-brand-700 transition-colors"
+          <button 
+            onClick={() => navigate('/')}
+            className="flex items-center justify-center gap-2 bg-brand-600 text-white py-3.5 rounded-xl font-bold hover:bg-brand-700 transition-colors w-full"
           >
             <Home className="w-5 h-5" /> Voltar ao Site
-          </Link>
+          </button>
         </div>
       </div>
 
