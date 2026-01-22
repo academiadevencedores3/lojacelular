@@ -13,6 +13,7 @@ import { DataProvider } from './context/DataContext';
 import { AuthProvider } from './context/AuthContext';
 
 const App: React.FC = () => {
+  // App Structure: Data -> Auth -> Cart -> Router
   return (
     <DataProvider>
       <AuthProvider>
