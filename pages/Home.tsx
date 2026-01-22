@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
-import { products, categories } from '../data/mockData';
+import React from 'react';
+import { useData } from '../context/DataContext'; // Changed from import mockData
 import ProductCard from '../components/ProductCard';
 import { ArrowRight, Star, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 const Home: React.FC = () => {
+  const { products, categories } = useData(); // Consume data from context
   const [searchParams, setSearchParams] = useSearchParams();
   const currentCategory = searchParams.get('category');
   
@@ -36,6 +37,7 @@ const Home: React.FC = () => {
           <img 
             src="https://images.unsplash.com/photo-1556656793-02715d8dd6f8?q=80&w=2000&auto=format&fit=crop" 
             alt="Hero Background" 
+            crossOrigin="anonymous"
             className="w-full h-full object-cover opacity-40"
           />
         </div>
@@ -85,6 +87,7 @@ const Home: React.FC = () => {
                 <img 
                   src={cat.image} 
                   alt={cat.name} 
+                  crossOrigin="anonymous"
                   className="w-full h-full object-cover transition-transform duration-500"
                 />
               </div>

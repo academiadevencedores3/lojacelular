@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
+import { useData } from '../context/DataContext';
 import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, Truck, Store, User, Smartphone, Mail, CreditCard, Lock, 
-  QrCode, Banknote, Bitcoin, Wallet
+  QrCode, Banknote, Bitcoin, Wallet, FileText
 } from 'lucide-react';
 import { OrderForm } from '../types';
 
 const Checkout: React.FC = () => {
-  const { cart, cartTotal, clearCart } = useCart();
+  const { cart, cartTotal } = useCart(); // Removed clearCart from destructuring here as it's no longer used
+  const { recordSale, paymentSettings } = useData();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState<OrderForm>({
+  const [formData, setFormData] = useState<OrderForm & { cpf: string }>({
     fullName: '',
     email: '',
     whatsapp: '',
+    cpf: '',
     deliveryMethod: 'pickup',
     paymentMethod: '',
     zipCode: '',
@@ -30,7 +33,7 @@ const Checkout: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePaymentSelect = (method: OrderForm['paymentMethod']) => {
+  const handlePaymentSelect = (method: string) => {
     setFormData((prev) => ({ ...prev, paymentMethod: method }));
   };
 
@@ -38,9 +41,9 @@ const Checkout: React.FC = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Basic Validation simulation
+    // Validação Básica
     if (!formData.fullName || !formData.email || !formData.whatsapp) {
-      alert("Por favor, preencha os dados de contato.");
+      alert("Por favor, preencha os dados de contato obrigatórios.");
       setLoading(false);
       return;
     }
@@ -59,11 +62,24 @@ const Checkout: React.FC = () => {
       return;
     }
 
-    // Simulate API call
+    // Simulação de Processamento e Registro da Venda
     setTimeout(() => {
-      clearCart();
-      const orderId = Math.floor(Math.random() * 1000000);
-      navigate('/success', { state: { orderId, customerName: formData.fullName } });
+      const sale = recordSale({
+        sellerId: undefined, // Venda online (sem vendedor logado)
+        sellerName: 'Loja Online',
+        total: cartTotal,
+        items: cart,
+        paymentMethod: formData.paymentMethod,
+        customerName: formData.fullName,
+        customerCpf: formData.cpf, // Passando o CPF capturado
+        date: new Date().toISOString()
+      });
+
+      // Importante: Não limpamos o carrinho aqui para evitar que a verificação de "carrinho vazio"
+      // redirecione o usuário para a home antes da navegação para o sucesso ocorrer.
+      // O carrinho será limpo na página de Sucesso.
+      
+      navigate('/success', { state: { sale } });
     }, 1500);
   };
 
@@ -72,13 +88,17 @@ const Checkout: React.FC = () => {
     return null;
   }
 
-  const paymentOptions = [
-    { id: 'pix', label: 'Pix', icon: QrCode, description: 'Aprovação imediata, 5% de desconto' },
-    { id: 'credit_card', label: 'Cartão de Crédito', icon: CreditCard, description: 'Até 12x sem juros' },
-    { id: 'debit_card', label: 'Cartão de Débito', icon: CreditCard, description: 'Pagamento na entrega' },
-    { id: 'cash', label: 'Dinheiro', icon: Banknote, description: 'Pagamento na entrega' },
-    { id: 'crypto', label: 'USDT / Cripto', icon: Bitcoin, description: 'Transferência via Wallet' },
-  ];
+  // Filtra métodos de pagamento ativos no Admin
+  const activePaymentMethods = paymentSettings.filter(p => p.active);
+
+  const getPaymentIcon = (id: string) => {
+    switch(id) {
+      case 'pix': return QrCode;
+      case 'cash': return Banknote;
+      case 'crypto': return Bitcoin;
+      default: return CreditCard;
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -92,7 +112,7 @@ const Checkout: React.FC = () => {
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-brand-600" />
-              Dados Pessoais
+              Dados do Cliente
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -108,7 +128,22 @@ const Checkout: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">CPF (Opcional)</label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    name="cpf"
+                    value={formData.cpf}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
+                    placeholder="000.000.000-00"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Para emissão na nota fiscal</p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Telefone / WhatsApp</label>
                 <div className="relative">
                   <Smartphone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input
@@ -122,7 +157,7 @@ const Checkout: React.FC = () => {
                   />
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
@@ -234,38 +269,45 @@ const Checkout: React.FC = () => {
               Forma de Pagamento
             </h2>
             <div className="space-y-3">
-              {paymentOptions.map((option) => (
-                <label 
-                  key={option.id}
-                  className={`
-                    relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all
-                    ${formData.paymentMethod === option.id 
-                      ? 'border-brand-500 bg-brand-50' 
-                      : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}
-                  `}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value={option.id}
-                    checked={formData.paymentMethod === option.id}
-                    onChange={() => handlePaymentSelect(option.id as OrderForm['paymentMethod'])}
-                    className="sr-only"
-                  />
-                  <div className={`p-2 rounded-lg mr-4 ${formData.paymentMethod === option.id ? 'bg-brand-200 text-brand-700' : 'bg-slate-100 text-slate-500'}`}>
-                    <option.icon className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="block font-semibold text-slate-900">{option.label}</span>
-                    <span className="text-sm text-slate-500">{option.description}</span>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.paymentMethod === option.id ? 'border-brand-500' : 'border-slate-300'}`}>
-                    {formData.paymentMethod === option.id && (
-                      <div className="w-2.5 h-2.5 rounded-full bg-brand-500" />
-                    )}
-                  </div>
-                </label>
-              ))}
+              {activePaymentMethods.length === 0 ? (
+                <p className="text-red-500">Nenhum método de pagamento disponível no momento.</p>
+              ) : (
+                activePaymentMethods.map((option) => {
+                  const Icon = getPaymentIcon(option.id);
+                  return (
+                    <label 
+                      key={option.id}
+                      className={`
+                        relative flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all
+                        ${formData.paymentMethod === option.name 
+                          ? 'border-brand-500 bg-brand-50' 
+                          : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'}
+                      `}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={option.name}
+                        checked={formData.paymentMethod === option.name}
+                        onChange={() => handlePaymentSelect(option.name)}
+                        className="sr-only"
+                      />
+                      <div className={`p-2 rounded-lg mr-4 ${formData.paymentMethod === option.name ? 'bg-brand-200 text-brand-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="block font-semibold text-slate-900">{option.name}</span>
+                        <span className="text-sm text-slate-500 capitalize">{option.type}</span>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.paymentMethod === option.name ? 'border-brand-500' : 'border-slate-300'}`}>
+                        {formData.paymentMethod === option.name && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-brand-500" />
+                        )}
+                      </div>
+                    </label>
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -309,7 +351,7 @@ const Checkout: React.FC = () => {
                 'Processando...'
               ) : (
                 <>
-                  <CreditCard className="w-5 h-5" /> Finalizar Pedido
+                  <CreditCard className="w-5 h-5" /> Confirmar Pagamento
                 </>
               )}
             </button>
